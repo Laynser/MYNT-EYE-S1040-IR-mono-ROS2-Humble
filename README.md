@@ -1,31 +1,53 @@
 # MYNT EYE SDK + ROS 2 Node (Build Sources)
 
 This repository contains:
-- **MYNT EYE SDK sources** (used to build and install the native SDK and run sample applications)
+- **MYNT EYE SDK sources** (for building/installing the native SDK and running sample applications)
 - **ROS 2 package (node)** for interacting with MYNT EYE cameras from ROS 2
 
-The instructions below describe a typical **Ubuntu / Linux** workflow where **OpenCV 3.4.3** is built from sources and installed into `/opt`, then the **MYNT EYE SDK** is built and installed, and finally the **ROS 2 node** is built in a ROS 2 workspace.
+> **Target OS:** Ubuntu 22.04  
+> **Important:** The SDK sources in this repository are **modified** relative to the original MYNT EYE SDK so that everything builds correctly on Ubuntu 22.04. In particular, a **legacy OpenCV (3.4.3)** is required and some build flags were adjusted.  
+> **Hardware:** MYNT EYE cameras must be connected to **USB 3.0**.
 
 ---
 
-## 1. Prerequisites
+## RU — Инструкция по работе с репозиторием (Ubuntu 22.04)
 
-- Build tools: `gcc/g++`, `cmake`, `make`
-- A working **ROS 2** installation (e.g., Humble) and a ROS 2 workspace
-- MYNT EYE camera connected via USB
+### Что находится в репозитории
 
-Recommended:
-- Use a clean workspace and ensure you do not mix multiple OpenCV versions unintentionally.
+- Исходники **MYNT EYE SDK** (сборка нативного SDK + запуск sample-приложений)
+- Пакет(ы) **ROS 2** (нода для работы с камерой в ROS 2)
 
 ---
 
-## 2. Build and Install OpenCV 3.4.3 (from sources)
+## 1. Требования
 
-> This step installs OpenCV into `/opt/opencv-3.4.3` and registers its libraries in the system dynamic linker cache.
+- Ubuntu 22.04
+- Камера MYNT EYE подключена к **USB 3.0**
+- Установленный ROS 2 (например, Humble) и рабочее пространство `colcon`
+- Инструменты сборки: `gcc/g++`, `cmake`, `make`, `git`
 
-From the OpenCV source directory:
+Рекомендация: держите окружение “чистым” и не допускайте, чтобы CMake случайно подхватил другую версию OpenCV из системы.
+
+---
+
+## 2. Зависимости (рекомендуемый минимум)
 
 ```bash
+sudo apt update
+sudo apt install -y \
+  build-essential cmake git pkg-config \
+  libgtk-3-dev \
+  libavcodec-dev libavformat-dev libswscale-dev \
+  libtbb2 libtbb-dev \
+  libjpeg-dev libpng-dev libtiff-dev \
+  libdc1394-dev
+3. Сборка и установка OpenCV 3.4.3 (из исходников) в /opt
+Этот шаг устанавливает OpenCV в /opt/opencv-3.4.3 и регистрирует библиотеки через ldconfig.
+
+Из директории исходников OpenCV 3.4.3:
+
+bash
+Копировать код
 mkdir -p _build
 cd _build
 
@@ -38,9 +60,59 @@ cmake .. \
   -DBUILD_TESTS=OFF \
   -DBUILD_PERF_TESTS=OFF
 
-make -j$(nproc)
+make -j"$(nproc)"
 sudo make install
 
 echo /opt/opencv-3.4.3/lib | sudo tee /etc/ld.so.conf.d/opencv-3.4.3.conf
 sudo ldconfig
+Указать OpenCV_DIR
+В текущей сессии терминала:
+
+bash
+Копировать код
+export OpenCV_DIR=/opt/opencv-3.4.3/
+Чтобы сохранить для новых терминалов:
+
+bash
+Копировать код
+echo 'export OpenCV_DIR=/opt/opencv-3.4.3/' >> ~/.bashrc
+source ~/.bashrc
+4. Сборка и установка MYNT EYE SDK
+Перейдите в директорию SDK в этом репозитории:
+
+bash
+Копировать код
+cd <sdk>
+4.1 Required Packages / подготовка окружения
+bash
+Копировать код
+make init
+Что делает make init:
+
+подготавливает окружение сборки SDK (как правило: инициализирует/подтягивает зависимости, third-party компоненты, проверяет инструменты сборки).
+
+4.2 Build and install
+bash
+Копировать код
+make install
+Что делает make install:
+
+собирает SDK и устанавливает его в систему.
+
+По умолчанию SDK обычно устанавливается в:
+
+/usr/local (библиотеки часто попадают в /usr/local/lib, заголовки — в /usr/local/include)
+
+4.3 Building samples
+bash
+Копировать код
+make samples
+Что делает make samples:
+
+собирает примеры (sample applications), поставляемые вместе с SDK.
+
+4.4 Run samples
+bash
+Копировать код
+./samples/_output/bin/camera_with_senior_api
 
