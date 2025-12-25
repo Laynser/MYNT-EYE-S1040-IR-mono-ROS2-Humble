@@ -182,3 +182,61 @@ export OpenCV_DIR=/opt/opencv-3.4.3/
   ```
   Если пример не работает — проблему сначала решайте на уровне SDK/драйверов/USB.
 - Выполнен ли `sudo ldconfig` после `make install` SDK, и доступна ли `libmynteye.so.2`.
+
+## Launch-файл `mynt_chek.launch.py`
+
+**Назначение:** запускает ноду `depth_imu_publisher` из пакета `mynt_eye` с заданным namespace и серийным номером, а также управляет тем, какие потоки публиковать.
+
+### Что делает текущая конфигурация
+- Запускает:
+  - `package: mynt_eye`
+  - `executable: depth_imu_publisher`
+  - `name: depth_imu_publisher`
+  - `namespace: mynt_up`
+- Передаёт серийный номер как аргумент процесса:
+  - `arguments: ['000000412E1700090913']`
+- В текущем варианте отключает публикацию всех потоков:
+  - `publish_left/right/depth/points/imu = False`
+
+## Нода `depth_imu_publisher` (`depth_imu_publisher.cpp`)
+
+**Назначение:** ROS 2 нода-обёртка над MYNT EYE SDK. Поднимает устройство (опционально по серийному номеру), включает выбранные потоки SDK и публикует данные в ROS-топики.
+
+### Основные функции
+- **Инициализация устройства**
+  - Если параметр `serial_number` пустой — выбирается первое найденное устройство.
+  - Если задан — ищется устройство с совпадающим `Info::SERIAL_NUMBER`.
+- **Конфигурация потоков**
+  - Включение видеопотоков (LEFT/RIGHT), карт глубины/диспаратности (DEPTH/DISPARITY), облака точек (POINTS) и IMU (ACCEL/GYRO) зависит от параметров публикации.
+- **Публикация сообщений ROS 2**
+  - `sensor_msgs/Image` для камер/карт.
+  - `sensor_msgs/Imu` для IMU (ориентация не вычисляется — задаётся `orientation_covariance[0] = -1.0`).
+  - `sensor_msgs/PointCloud2` для облака точек (QoS: `rclcpp::SensorDataQoS()`).
+
+### Параметры (ключевые)
+- `publish_left`, `publish_right`, `publish_depth`, `publish_disparity`, `publish_imu`, `publish_points` *(bool)* — какие данные публиковать.
+- `frame_prefix` *(string, по умолчанию `mynt_eye`)* — префикс frame_id.
+- `points_topic` *(string, по умолчанию `pointcloud_in`)* — имя топика для PointCloud2.
+- `serial_number` *(string, по умолчанию пусто)* — серийный номер устройства.
+
+### Топики (типовые)
+- `left/image_raw` *(sensor_msgs/Image)*
+- `right/image_raw` *(sensor_msgs/Image)*
+- `depth/image_raw` *(sensor_msgs/Image, 16UC1)*
+- `disparity/image_raw` *(sensor_msgs/Image)*
+- `imu/data` *(sensor_msgs/Imu)*
+- `<points_topic>` *(sensor_msgs/PointCloud2)*
+
+### Кадры (frame_id)
+Формируются через `frame_prefix`, например:
+- `mynt_eye/left`, `mynt_eye/right`, `mynt_eye/depth`, `mynt_eye/disparity`, `mynt_eye/imu`
+- Для pointcloud обычно используется `frame_prefix` (без суффикса).
+
+### Особенность передачи серийного номера
+В `main()` нода читает **первый не-ROS аргумент процесса** (`arguments=[...]` в launch) и делает `parameter override` для `serial_number`.
+То есть серийник можно передавать:
+- как параметр `serial_number`, или
+- как аргумент запуска (удобно для launch-файлов).
+
+---
+
