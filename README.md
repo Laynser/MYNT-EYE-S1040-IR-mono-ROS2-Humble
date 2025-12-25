@@ -1,53 +1,37 @@
-# MYNT EYE SDK + ROS 2 Node (Build Sources)
+# Инструкция по сборке MYNT EYE SDK + ROS 2 ноды (Ubuntu 22.04)
 
-This repository contains:
-- **MYNT EYE SDK sources** (for building/installing the native SDK and running sample applications)
-- **ROS 2 package (node)** for interacting with MYNT EYE cameras from ROS 2
+## Важные замечания
 
-> **Target OS:** Ubuntu 22.04  
-> **Important:** The SDK sources in this repository are **modified** relative to the original MYNT EYE SDK so that everything builds correctly on Ubuntu 22.04. In particular, a **legacy OpenCV (3.4.3)** is required and some build flags were adjusted.  
-> **Hardware:** MYNT EYE cameras must be connected to **USB 3.0**.
+- Репозиторий содержит **модифицированный** MYNT EYE SDK относительно оригинального, чтобы корректно собираться на **Ubuntu 22.04**. В частности, требуется **OpenCV 3.4.3** и для сборки изменены некоторые флаги сборки.
+- Камеру MYNT EYE подключайте **строго к USB 3.0**.
 
 ---
 
-## RU — Инструкция по работе с репозиторием (Ubuntu 22.04)
-
-### Что находится в репозитории
-
-- Исходники **MYNT EYE SDK** (сборка нативного SDK + запуск sample-приложений)
-- Пакет(ы) **ROS 2** (нода для работы с камерой в ROS 2)
-
----
-
-## 1. Требования
-
-- Ubuntu 22.04
-- Камера MYNT EYE подключена к **USB 3.0**
-- Установленный ROS 2 (например, Humble) и рабочее пространство `colcon`
-- Инструменты сборки: `gcc/g++`, `cmake`, `make`, `git`
-
-Рекомендация: держите окружение “чистым” и не допускайте, чтобы CMake случайно подхватил другую версию OpenCV из системы.
-
----
-
-## 2. Зависимости (рекомендуемый минимум)
+## 1) Установка базовых зависимостей
 
 ```bash
 sudo apt update
-sudo apt install -y \
-  build-essential cmake git pkg-config \
-  libgtk-3-dev \
-  libavcodec-dev libavformat-dev libswscale-dev \
-  libtbb2 libtbb-dev \
-  libjpeg-dev libpng-dev libtiff-dev \
-  libdc1394-dev
-3. Сборка и установка OpenCV 3.4.3 (из исходников) в /opt
-Этот шаг устанавливает OpenCV в /opt/opencv-3.4.3 и регистрирует библиотеки через ldconfig.
+sudo apt install -y build-essential cmake git pkg-config
+sudo apt install -y libgtk-3-dev libavcodec-dev libavformat-dev libswscale-dev
+sudo apt install -y libtbb2 libtbb-dev libjpeg-dev libpng-dev libtiff-dev libdc1394-dev
+```
 
-Из директории исходников OpenCV 3.4.3:
+---
 
-bash
-Копировать код
+## 2) Сборка и установка OpenCV 3.4.3 в `/opt/opencv-3.4.3`
+
+Создайте и перейдите в каталог исходников OpenCV 3.4.3:
+
+```bash
+cd ~
+git clone https://github.com/opencv/opencv.git
+cd opencv
+git checkout 3.4.3
+```
+
+Создайте директорию сборки и выполните конфигурацию:
+
+```bash
 mkdir -p _build
 cd _build
 
@@ -59,60 +43,142 @@ cmake .. \
   -DBUILD_EXAMPLES=OFF \
   -DBUILD_TESTS=OFF \
   -DBUILD_PERF_TESTS=OFF
+```
 
+Соберите и установите:
+
+```bash
 make -j"$(nproc)"
 sudo make install
+```
 
+Добавьте путь библиотек OpenCV в динамический линкер и обновите кэш:
+
+```bash
 echo /opt/opencv-3.4.3/lib | sudo tee /etc/ld.so.conf.d/opencv-3.4.3.conf
 sudo ldconfig
-Указать OpenCV_DIR
-В текущей сессии терминала:
+```
 
-bash
-Копировать код
+Задайте переменную `OpenCV_DIR` для текущей сессии (важно для сборки SDK):
+
+```bash
 export OpenCV_DIR=/opt/opencv-3.4.3/
-Чтобы сохранить для новых терминалов:
+```
 
-bash
-Копировать код
-echo 'export OpenCV_DIR=/opt/opencv-3.4.3/' >> ~/.bashrc
-source ~/.bashrc
-4. Сборка и установка MYNT EYE SDK
-Перейдите в директорию SDK в этом репозитории:
+---
 
-bash
-Копировать код
-cd <sdk>
-4.1 Required Packages / подготовка окружения
-bash
-Копировать код
+## 3) Сборка и установка MYNT EYE SDK
+
+Перейдите в каталог SDK внутри репозитория (замените <repo_root>/):
+
+```bash
+cd <repo_root>/MYNT-EYE-S-SDK-master
+```
+
+Инициализация окружения сборки (Required Packages):
+
+```bash
 make init
-Что делает make init:
+```
 
-подготавливает окружение сборки SDK (как правило: инициализирует/подтягивает зависимости, third-party компоненты, проверяет инструменты сборки).
+Сборка и установка SDK:
 
-4.2 Build and install
-bash
-Копировать код
+```bash
 make install
-Что делает make install:
+```
 
-собирает SDK и устанавливает его в систему.
+Примечание: по умолчанию SDK обычно устанавливается в `/usr/local` (например, библиотеки в `/usr/local/lib`).
 
-По умолчанию SDK обычно устанавливается в:
+Сборка примеров:
 
-/usr/local (библиотеки часто попадают в /usr/local/lib, заголовки — в /usr/local/include)
-
-4.3 Building samples
-bash
-Копировать код
+```bash
 make samples
-Что делает make samples:
+```
 
-собирает примеры (sample applications), поставляемые вместе с SDK.
+Запуск примера для проверки работы SDK и камеры:
 
-4.4 Run samples
-bash
-Копировать код
+```bash
 ./samples/_output/bin/camera_with_senior_api
+```
 
+---
+
+## 4) Сборка ROS 2 ноды в workspace и запуск публикации данных
+
+Предполагается, что вы клонировали ROS 2 workspace (`~/ros2_ws`), и пакет ноды лежит в `src`.
+Если пакет лежит внутри репозитория, его нужно либо положить/сослать в `~/ros2_ws/src`, либо собирать workspace там, где он уже расположен.
+
+Перейдите в workspace:
+
+```bash
+cd ~/ros2_ws
+```
+
+Соберите workspace:
+
+```bash
+colcon build
+```
+
+Подключите окружение:
+
+```bash
+source install/setup.bash
+```
+
+Запустите launch-файл ноды (имя пакета/launch как в вашем проекте):
+
+```bash
+ros2 launch mynt_eye mynt_chek.launch.py
+```
+
+---
+
+## 5) Troubleshooting
+
+### 5.1) `libmynteye.so.2: cannot open shared object file`
+
+Это означает, что динамический линкер не видит библиотеки SDK.
+
+Сначала выполните:
+
+```bash
+sudo ldconfig
+```
+
+Если не помогло — найдите, где лежит библиотека:
+
+```bash
+sudo find /usr/local -name "libmynteye.so*" -print
+```
+
+Добавьте реальный путь к библиотекам SDK в конфигурацию `ldconfig` (пример для `/usr/local/lib`):
+
+```bash
+echo /usr/local/lib | sudo tee /etc/ld.so.conf.d/mynteye.conf
+sudo ldconfig
+```
+
+---
+
+### 5.2) OpenCV конфликтует по версии
+
+Если в системе несколько OpenCV, CMake может выбрать неправильную версию. Зафиксируйте:
+
+```bash
+export OpenCV_DIR=/opt/opencv-3.4.3/
+```
+
+---
+
+### 5.3) Нода запускается, но данных нет
+
+Проверьте по порядку:
+
+- Подключение камеры к **USB 3.0**
+- Запускается ли SDK пример:
+  ```bash
+  ./samples/_output/bin/camera_with_senior_api
+  ```
+  Если пример не работает — проблему сначала решайте на уровне SDK/драйверов/USB.
+- Выполнен ли `sudo ldconfig` после `make install` SDK, и доступна ли `libmynteye.so.2`.
